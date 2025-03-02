@@ -4,6 +4,7 @@ import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 import 'dart:convert';
 import 'package:smart_inventory/screens/home_screen/HomeScreen.dart';
+import 'package:smart_inventory/screens/signup_screen/SignupScreen.dart';
 
 class LoginScreen extends StatefulWidget {
   @override
@@ -201,6 +202,16 @@ class _LoginScreenState extends State<LoginScreen> {
                       ),
                       SizedBox(height: 70,),
                       FadeInUp(duration: Duration(milliseconds: 2000), child: Text("Forgot Password?", style: TextStyle(color: Color.fromRGBO(143, 148, 251, 1)),)),
+
+                      SizedBox(height: 20,),
+                      FadeInUp(duration: Duration(milliseconds: 2000), child: GestureDetector(
+                        onTap: () {
+                          Navigator.pushReplacement(
+                            context,
+                            MaterialPageRoute(builder: (context) => SignupScreen()),
+                          );
+                        },
+                          child: Text("SignUp", style: TextStyle(color: Color.fromRGBO(143, 148, 251, 1)),))),
                     ],
                   ),
                 )

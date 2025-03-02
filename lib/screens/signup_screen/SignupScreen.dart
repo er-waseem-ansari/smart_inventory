@@ -276,6 +276,15 @@ class _SignupScreenState extends State<SignupScreen> {
                         ),
                       ),
                     ),
+                    SizedBox(height: 20,),
+                    FadeInUp(duration: Duration(milliseconds: 2000), child: GestureDetector(
+                        onTap: () {
+                          Navigator.pushReplacement(
+                            context,
+                            MaterialPageRoute(builder: (context) => LoginScreen()),
+                          );
+                        },
+                        child: Text("Login", style: TextStyle(color: Color.fromRGBO(143, 148, 251, 1)),))),
                     SizedBox(height: 70),
                   ],
                 ),

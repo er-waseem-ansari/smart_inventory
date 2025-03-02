@@ -1,3 +1,5 @@
+import 'dart:convert';
+import 'package:http/http.dart' as http;
 import 'package:double_back_to_close_app/double_back_to_close_app.dart';
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -15,151 +17,129 @@ class HomeScreen extends StatefulWidget {
 }
 
 class _HomeScreenState extends State<HomeScreen> {
+
+  final TextEditingController _productNameController = TextEditingController();
+  final TextEditingController _productDescriptionController = TextEditingController();
+  final TextEditingController _productCategoryController = TextEditingController();
+  final TextEditingController _productCodeController = TextEditingController();
+
+  List<Map<String, String>> productGroups = [];
+
+  @override
+  void initState() {
+    super.initState();
+    fetchProductGroups();
+  }
+
+  Future<void> fetchProductGroups() async {
+    final response = await http.get(Uri.parse('http://10.0.2.2:8082/products'));
+
+
+
+    if (response.statusCode == 200) {
+      final List<dynamic> data = json.decode(response.body);
+      setState(() {
+        productGroups = data.map<Map<String, String>>((item) {
+          return {
+            'productName': item['productName']?.toString() ?? '',
+            'productCategory': item['productCategory']?.toString() ?? '',
+            'productDescription': item['productDescription']?.toString() ?? '',
+            'productCode': item['productCode']?.toString() ?? '',
+          };
+        }).toList();
+      });
+    } else {
+      print("Failed to load product groups");
+    }
+  }
+  Future<void> addProductGroup() async {
+    final response = await http.post(
+      Uri.parse('http://10.0.2.2:8082/products/add'),
+      headers: {'Content-Type': 'application/json'},
+      body: json.encode({
+        "productName": _productNameController.text,
+        "productDescription": _productDescriptionController.text,
+        "productCategory": _productCategoryController.text,
+        "productCode": _productCodeController.text,
+      }),
+    );
+
+    if (response.statusCode == 200) {
+      Navigator.of(context).pop(); // Close dialog
+      fetchProductGroups(); // Refresh UI
+    } else {
+      print("Failed to add product group");
+    }
+  }
+
+  void showAddProductGroupDialog() {
+    showDialog(
+      context: context,
+      builder: (context) {
+        return AlertDialog(
+          title: const Text("Add Product Group", style: TextStyle(fontFamily: "Nunito")),
+          content: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                buildTextField("Product Name", _productNameController),
+                const SizedBox(height: 10),
+                buildTextField("Product Description", _productDescriptionController),
+                const SizedBox(height: 10),
+                buildTextField("Product Category", _productCategoryController),
+                const SizedBox(height: 10),
+                buildTextField("Product Code", _productCodeController),
+              ],
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(),
+              child: const Text("Cancel"),
+            ),
+            ElevatedButton(
+              onPressed: () {
+                if (_productNameController.text.isNotEmpty &&
+                    _productDescriptionController.text.isNotEmpty &&
+                    _productCategoryController.text.isNotEmpty &&
+                    _productCodeController.text.isNotEmpty) {
+                  addProductGroup();
+                } else {
+                  print("Please fill all fields");
+                }
+              },
+              child: const Text("Done"),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  Widget buildTextField(String hint, TextEditingController controller) {
+    return TextField(
+      controller: controller,
+      decoration: InputDecoration(
+        border: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(15),
+        ),
+        hintText: hint,
+      ),
+    );
+  }
+
   final TextEditingController _newProductGroup = TextEditingController();
 
   @override
   Widget build(BuildContext context) {
-
-    final List<String> productGroups = [
-      'Electronics',
-      'Groceries',
-      'Clothing',
-      'Stationery',
-      'Toys',
-      'Home Appliances',
-      'Books',
-      'Sports Equipment'
-    ];
-
     return Scaffold(
       floatingActionButton: Padding(padding: const EdgeInsets.only(
         bottom: 10,
         right: 10
       ),
-        child: FloatingActionButton(
-          onPressed: () {
-            showDialog(
-              context: context,
-              builder: (context) {
-                return AlertDialog(
-                  title: const Text(
-                    "Add Product Group",
-                    style: TextStyle(fontFamily: "Nunito"),
-                  ),
-                  content: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Container(
-                        decoration: BoxDecoration(
-                          color: ColorPalette.white,
-                          borderRadius: BorderRadius.circular(12),
-                          boxShadow: [
-                            BoxShadow(
-                              offset: const Offset(0, 3),
-                              blurRadius: 6,
-                              color: const Color(0xff000000).withOpacity(0.16),
-                            ),
-                          ],
-                        ),
-                        height: 50,
-                        child: TextField(
-                          textInputAction: TextInputAction.next,
-                          key: UniqueKey(),
-                          controller: _newProductGroup,
-                          keyboardType: TextInputType.text,
-                          style: const TextStyle(
-                            fontFamily: "Nunito",
-                            fontSize: 16,
-                            color: ColorPalette.nileBlue,
-                          ),
-                          decoration: InputDecoration(
-                            border: InputBorder.none,
-                            hintText: "Product Group Name",
-                            filled: true,
-                            fillColor: Colors.transparent,
-                            hintStyle: TextStyle(
-                              fontFamily: "Nunito",
-                              fontSize: 16,
-                              color: ColorPalette.nileBlue.withOpacity(0.58),
-                            ),
-                          ),
-                          cursorColor: ColorPalette.timberGreen,
-                        ),
-                      ),
-                      const SizedBox(
-                        height: 20,
-                      ),
-                      GestureDetector(
-                        onTap: () async {
-                          if (_newProductGroup.text != null &&
-                              _newProductGroup.text != "") {
-                          //   try {
-                          //     final DocumentSnapshot<Map<String, dynamic>>
-                          //     _doc = await _firestore
-                          //         .collection("utils")
-                          //         .doc("productGroups")
-                          //         .get();
-                          //     final List<dynamic> _tempList =
-                          //     _doc.data()!['list'] as List<dynamic>;
-                          //     if (_tempList.contains(_newProductGroup.text)) {
-                          //       showTextToast("Group Name already created");
-                          //     } else {
-                          //       _tempList.add(_newProductGroup.text);
-                          //       _firestore
-                          //           .collection('utils')
-                          //           .doc("productGroups")
-                          //           .update({'list': _tempList});
-                          //       showTextToast("Added Successfully");
-                          //     }
-                          //   } catch (e) {
-                          //     showTextToast("An Error Occured!");
-                          //   }
-                          //   // ignore: use_build_context_synchronously
-                          //   Navigator.of(context).pop();
-                          //   _newProductGroup.text = "";
-                          // } else {
-                          //   showTextToast("Enter Valid Name!");
-                          }
-                        },
-                        child: Container(
-                          height: 45,
-                          width: 90,
-                          decoration: BoxDecoration(
-                            borderRadius: BorderRadius.circular(20),
-                            color: ColorPalette.pacificBlue,
-                            boxShadow: [
-                              BoxShadow(
-                                offset: const Offset(0, 3),
-                                blurRadius: 6,
-                                color:
-                                const Color(0xff000000).withOpacity(0.16),
-                              ),
-                            ],
-                          ),
-                          child: const Center(
-                            child: Text(
-                              "Done",
-                              style: TextStyle(
-                                fontSize: 15,
-                                fontFamily: "Nunito",
-                                color: ColorPalette.white,
-                              ),
-                            ),
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                );
-              },
-            );
-          },
-          splashColor: ColorPalette.bondyBlue,
+        child: FloatingActionButton(onPressed: showAddProductGroupDialog,
           backgroundColor: ColorPalette.pacificBlue,
-          child: const Icon(
-            Icons.add,
-            color: ColorPalette.white,
-          ),
+          child: const Icon(Icons.add, color: ColorPalette.white),
         ),
 
       ),
@@ -186,16 +166,16 @@ class _HomeScreenState extends State<HomeScreen> {
                     height: 90,
                     decoration: const BoxDecoration(
                       color: ColorPalette.pacificBlue,
-                      borderRadius: BorderRadius.only(
-                        bottomLeft: Radius.circular(16),
-                        bottomRight: Radius.circular(16),
-                      ),
+                      // borderRadius: BorderRadius.only(
+                      //   bottomLeft: Radius.circular(16),
+                      //   bottomRight: Radius.circular(16),
+                      // ),
                     ),
                     child: Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
                         const Text(
-                          "Homepage",
+                          "SmartInventory",
                           style: TextStyle(
                             fontFamily: "Nunito",
                             fontSize: 28,
@@ -271,51 +251,6 @@ class _HomeScreenState extends State<HomeScreen> {
                               ),
                             ),
                             const SizedBox(height: 20),
-                            /*Expanded(
-                              child: StreamBuilder(
-                                stream:
-                                _firestore.collection("utils").snapshots(),
-                                builder: (
-                                    BuildContext context,
-                                    AsyncSnapshot<
-                                        QuerySnapshot<Map<String, dynamic>>>
-                                    snapshot,
-                                    ) {
-                                  if (snapshot.hasData) {
-                                    final List<dynamic> _productGroups =
-                                    snapshot.data!.docs[0].data()['list']
-                                    as List<dynamic>;
-                                    _productGroups.sort();
-                                    return GridView.builder(
-                                      gridDelegate:
-                                      const SliverGridDelegateWithFixedCrossAxisCount(
-                                        crossAxisCount: 2,
-                                        childAspectRatio: 2,
-                                        crossAxisSpacing: 20,
-                                        mainAxisSpacing: 20,
-                                      ),
-                                      itemCount: _productGroups.length,
-                                      itemBuilder: (context, index) {
-                                        return ProductGroupCard(
-                                          name: _productGroups[index] as String,
-                                          key: UniqueKey(),
-                                        );
-                                      },
-                                    );
-                                  } else {
-                                    return const Center(
-                                      child: SizedBox(
-                                        height: 40,
-                                        width: 40,
-                                        child: CircularProgressIndicator(
-                                          color: ColorPalette.pacificBlue,
-                                        ),
-                                      ),
-                                    );
-                                  }
-                                },
-                              ),
-                            )*/
                             Expanded(
                               child: GridView.builder(
                                 gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
@@ -326,8 +261,12 @@ class _HomeScreenState extends State<HomeScreen> {
                                 ),
                                 itemCount: productGroups.length,
                                 itemBuilder: (context, index) {
+                                  final reversedList = productGroups.reversed.toList();
                                   return ProductGroupCard(
-                                    name: productGroups[index],
+                                    name: reversedList[index]['productName'],
+                                    type: reversedList[index]['productCategory'],
+                                    description: reversedList[index]['productDescription'],
+                                    code: reversedList[index]['productCode'],
                                     key: UniqueKey(),
                                   );
                                 },

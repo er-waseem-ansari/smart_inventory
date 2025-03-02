@@ -1,5 +1,8 @@
+import 'dart:ffi';
+
 class Product {
   Product({
+    this.id,
     this.name,
     this.cost,
     this.group,
@@ -10,6 +13,7 @@ class Product {
     this.description,
   });
 
+  int? id;
   String? name;
   double? cost;
   String? group;
@@ -20,6 +24,7 @@ class Product {
   String? description;
 
   factory Product.fromMap(Map<String, dynamic> json) => Product(
+    id: json["id"] as int?,
     name: json["name"] as String?,
     cost: json["cost"] as double?,
     group: json["group"] as String?,
@@ -31,6 +36,7 @@ class Product {
   );
 
   Map<String, dynamic> toMap() => {
+    "id": id,
     "name": name,
     "cost": cost,
     "group": group,
