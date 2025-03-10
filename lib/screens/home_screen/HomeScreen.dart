@@ -45,6 +45,7 @@ class _HomeScreenState extends State<HomeScreen> {
             'productCategory': item['productCategory']?.toString() ?? '',
             'productDescription': item['productDescription']?.toString() ?? '',
             'productCode': item['productCode']?.toString() ?? '',
+            'productId': item['productId']?.toString() ?? '',
           };
         }).toList();
       });
@@ -242,13 +243,24 @@ class _HomeScreenState extends State<HomeScreen> {
                                 ),
                               ],
                             ),
-                            const Text(
-                              "Product Groups",
-                              style: TextStyle(
-                                color: ColorPalette.timberGreen,
-                                fontSize: 20,
-                                fontFamily: "Nunito",
-                              ),
+                            Row(
+                              children: [
+                                const Text(
+                                  "Product Groups",
+                                  style: TextStyle(
+                                    color: ColorPalette.timberGreen,
+                                    fontSize: 20,
+                                    fontFamily: "Nunito",
+                                  ),
+                                ),
+                                const Spacer(),
+                                IconButton(
+                                  onPressed: () {
+                                    fetchProductGroups();
+                                  },
+                                  icon: const Icon(Icons.refresh),
+                                ),
+                              ],
                             ),
                             const SizedBox(height: 20),
                             Expanded(
@@ -267,6 +279,7 @@ class _HomeScreenState extends State<HomeScreen> {
                                     type: reversedList[index]['productCategory'],
                                     description: reversedList[index]['productDescription'],
                                     code: reversedList[index]['productCode'],
+                                    id: int.parse(reversedList[index]['productId']!),
                                     key: UniqueKey(),
                                   );
                                 },

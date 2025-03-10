@@ -10,7 +10,8 @@ import 'package:http/http.dart' as http;
 
 class ProductGroupPage extends StatefulWidget {
   final String? name;
-  ProductGroupPage({Key? key, this.name}) : super(key: key);
+  final int? id;
+  ProductGroupPage({Key? key, this.name, this.id}) : super(key: key);
 
   @override
   State<ProductGroupPage> createState() => _ProductGroupPageState();
@@ -25,8 +26,33 @@ class _ProductGroupPageState extends State<ProductGroupPage> {
     futureProducts = fetchProducts();
   }
 
+  Future<void> deleteProduct(BuildContext context) async {
+    try {
+      print("INSIDE DELETE PRODUCT with ID: ${widget.id}");
+
+      final response = await http.delete(
+          Uri.parse('http://10.0.2.2:8082/products/${widget.id}'),
+      );
+
+      if (response.statusCode == 200) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Product deleted successfully!')),
+        );
+        Navigator.of(context).pop();
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Failed to delete product: ${response.body}')),
+        );
+      }
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Error: $e')),
+      );
+    }
+  }
+
   Future<List<Product>> fetchProducts() async {
-    final response = await http.get(Uri.parse("http://10.0.2.2:8082/products/items/group/${widget.name}"));
+    final response = await http.get(Uri.parse("http://10.0.2.2:8082/products/items/productName/${widget.name}"));
 
     if (response.statusCode == 200) {
       List<dynamic> data = json.decode(response.body);
@@ -70,13 +96,26 @@ class _ProductGroupPageState extends State<ProductGroupPage> {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         const SizedBox(height: 20),
-                        const Text(
-                          "Products",
-                          style: TextStyle(
-                            color: ColorPalette.timberGreen,
-                            fontSize: 20,
-                            fontFamily: "Nunito",
-                          ),
+                        Row(
+                          children: [
+                            const Text(
+                              "Products",
+                              style: TextStyle(
+                                color: ColorPalette.timberGreen,
+                                fontSize: 20,
+                                fontFamily: "Nunito",
+                              ),
+                            ),
+                            const Spacer(),
+                            IconButton(
+                              icon: const Icon(Icons.refresh, color: ColorPalette.timberGreen),
+                              onPressed: () {
+                                setState(() {
+                                  futureProducts = fetchProducts();
+                                });
+                              },
+                            ),
+                          ],
                         ),
                         const SizedBox(height: 20),
                         Expanded(
@@ -161,7 +200,7 @@ class _ProductGroupPageState extends State<ProductGroupPage> {
               IconButton(
                 icon: const Icon(Icons.delete, color: Colors.white),
                 onPressed: () {
-                  // TODO: Implement delete functionality
+                  deleteProduct(context);
                 },
               ),
             ],

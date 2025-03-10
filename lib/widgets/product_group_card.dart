@@ -10,6 +10,7 @@ class ProductGroupCard extends StatelessWidget {
   final String? description;
   final String? code;
   final String? imageUrl; // URL or asset path for the image.
+  final int? id;
 
   const ProductGroupCard({
     Key? key,
@@ -18,6 +19,7 @@ class ProductGroupCard extends StatelessWidget {
     this.description,
     this.code,
     this.imageUrl,
+    this.id,
   }) : super(key: key);
 
   @override
@@ -26,15 +28,18 @@ class ProductGroupCard extends StatelessWidget {
       padding: const EdgeInsets.all(5),
       child: GestureDetector(
         onTap: () {
-          Navigator.of(context).push(
+          Navigator.of(context)
+              .push(
             MaterialPageRoute(
-              builder: (context) {
-                return ProductGroupPage(
-                  name: name,
-                );
-              },
+              builder: (context) => ProductGroupPage(name: name, id: id,),
             ),
-          );
+          )
+              .then((value) {
+            if (value == true) {
+              // Trigger refresh on the previous page
+              (context as Element).markNeedsBuild();
+            }
+          });
         },
         child: Container(
           padding: const EdgeInsets.all(10),

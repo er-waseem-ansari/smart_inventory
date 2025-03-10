@@ -74,10 +74,10 @@ class ProductCard extends StatelessWidget {
                   Text(
                     product!.name ?? '',
                     maxLines: 1,
-                    style: const TextStyle(
+                    style: TextStyle(
                       fontFamily: "Nunito",
                       fontSize: 20,
-                      color: Colors.white,
+                      color: ColorPalette.timberGreen.withOpacity(0.8),
                     ),
                   ),
                   const SizedBox(
@@ -88,15 +88,15 @@ class ProductCard extends StatelessWidget {
                       Icon(
                         Icons.location_on,
                         size: 14,
-                        color: Colors.white.withOpacity(0.44),
+                        color: ColorPalette.timberGreen.withOpacity(0.44),
                       ),
                       Text(
                         product!.location ?? '-',
                         maxLines: 1,
-                        style: const TextStyle(
+                        style: TextStyle(
                           fontFamily: "Nunito",
                           fontSize: 12,
-                          color: Colors.white,
+                          color: ColorPalette.timberGreen.withOpacity(0.44),
                         ),
                       ),
                     ],

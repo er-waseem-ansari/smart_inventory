@@ -15,7 +15,7 @@ class NewProductPage extends StatelessWidget {
 
   Future<void> addProduct(BuildContext context) async {
     try {
-      final url = Uri.parse('http://localhost:8082/products/items');
+      final url = Uri.parse('http://10.0.2.2:8082/products/items');
 
       final response = await http.post(
         url,
@@ -30,6 +30,7 @@ class NewProductPage extends StatelessWidget {
           "quantity": newProduct.quantity,
           "image": newProduct.image,
           "description": newProduct.description,
+          "productName": group,
         }),
       );
 
