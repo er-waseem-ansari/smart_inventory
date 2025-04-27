@@ -1,15 +1,14 @@
+import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:smart_inventory/screens/product_group_screen/ProductGroupPage.dart';
 import 'package:smart_inventory/utils/color_palette.dart';
-
-
 
 class ProductGroupCard extends StatelessWidget {
   final String? name;
   final String? type;
   final String? description;
   final String? code;
-  final String? imageUrl; // URL or asset path for the image.
+  final String? imageData; // Base64 string for the image
   final int? id;
 
   const ProductGroupCard({
@@ -18,7 +17,7 @@ class ProductGroupCard extends StatelessWidget {
     this.type,
     this.description,
     this.code,
-    this.imageUrl,
+    this.imageData,
     this.id,
   }) : super(key: key);
 
@@ -31,7 +30,7 @@ class ProductGroupCard extends StatelessWidget {
           Navigator.of(context)
               .push(
             MaterialPageRoute(
-              builder: (context) => ProductGroupPage(name: name, id: id,),
+              builder: (context) => ProductGroupPage(name: name, id: id),
             ),
           )
               .then((value) {
@@ -58,15 +57,20 @@ class ProductGroupCard extends StatelessWidget {
             children: [
               // Left 1/3 part - Image
               Container(
-                width: MediaQuery.of(context).size.width / 3, // Adjust as needed
-                height: 80,
+                width: MediaQuery.of(context).size.width / 3,
+                // height: 80,
                 decoration: BoxDecoration(
                   borderRadius: BorderRadius.circular(12),
                   image: DecorationImage(
-                    image: imageUrl != null
-                        ? NetworkImage(imageUrl!) // For network image
-                        : const AssetImage('assets/images/default_category_image.png') as ImageProvider, // Default image
-                    // fit: BoxFit.cover,
+                    image: imageData != null && imageData!.isNotEmpty
+                        ? MemoryImage(
+                      base64Decode(
+                        imageData!.replaceFirst(RegExp(r'data:image/[^;]+;base64,'), ''),
+                      ),
+                    )
+                        : const AssetImage('assets/images/default_category_image.png')
+                    as ImageProvider,
+                    fit: BoxFit.cover,
                   ),
                 ),
               ),

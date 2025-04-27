@@ -1,13 +1,14 @@
 import 'dart:convert';
-import 'package:http/http.dart' as http;
+import 'dart:io';
 import 'package:double_back_to_close_app/double_back_to_close_app.dart';
 import 'package:flutter/material.dart';
+import 'package:http/http.dart' as http;
+import 'package:image_picker/image_picker.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:smart_inventory/functions/confirm_dialog.dart';
 import 'package:smart_inventory/screens/login_screen/LoginScreen.dart';
 import 'package:smart_inventory/utils/color_palette.dart';
 import 'package:smart_inventory/widgets/product_group_card.dart';
-
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -17,13 +18,14 @@ class HomeScreen extends StatefulWidget {
 }
 
 class _HomeScreenState extends State<HomeScreen> {
-
   final TextEditingController _productNameController = TextEditingController();
   final TextEditingController _productDescriptionController = TextEditingController();
   final TextEditingController _productCategoryController = TextEditingController();
   final TextEditingController _productCodeController = TextEditingController();
 
   List<Map<String, String>> productGroups = [];
+  File? _selectedImage;
+  final ImagePicker _picker = ImagePicker();
 
   @override
   void initState() {
@@ -33,8 +35,6 @@ class _HomeScreenState extends State<HomeScreen> {
 
   Future<void> fetchProductGroups() async {
     final response = await http.get(Uri.parse('http://10.0.2.2:8082/products'));
-
-
 
     if (response.statusCode == 200) {
       final List<dynamic> data = json.decode(response.body);
@@ -46,6 +46,7 @@ class _HomeScreenState extends State<HomeScreen> {
             'productDescription': item['productDescription']?.toString() ?? '',
             'productCode': item['productCode']?.toString() ?? '',
             'productId': item['productId']?.toString() ?? '',
+            'imageData': item['imageData']?.toString() ?? '',
           };
         }).toList();
       });
@@ -53,7 +54,14 @@ class _HomeScreenState extends State<HomeScreen> {
       print("Failed to load product groups");
     }
   }
+
   Future<void> addProductGroup() async {
+    String? base64Image;
+    if (_selectedImage != null) {
+      final bytes = await _selectedImage!.readAsBytes();
+      base64Image = base64Encode(bytes);
+    }
+
     final response = await http.post(
       Uri.parse('http://10.0.2.2:8082/products/add'),
       headers: {'Content-Type': 'application/json'},
@@ -62,14 +70,44 @@ class _HomeScreenState extends State<HomeScreen> {
         "productDescription": _productDescriptionController.text,
         "productCategory": _productCategoryController.text,
         "productCode": _productCodeController.text,
+        "imageData": base64Image,
       }),
     );
 
     if (response.statusCode == 200) {
       Navigator.of(context).pop(); // Close dialog
+      setState(() {
+        _selectedImage = null; // Reset image
+      });
       fetchProductGroups(); // Refresh UI
     } else {
-      print("Failed to add product group");
+      print("Failed to add product group: ${response.body}");
+    }
+  }
+
+  Future<void> _pickImage() async {
+    try {
+      final pickedFile = await _picker.pickImage(source: ImageSource.gallery);
+      if (pickedFile != null) {
+        final file = File(pickedFile.path);
+        if (await file.exists()) {
+          setState(() {
+            _selectedImage = file;
+          });
+        } else {
+          print("Error: Selected file does not exist at path: ${pickedFile.path}");
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text("Failed to load image")),
+          );
+        }
+      } else {
+        print("No image selected");
+      }
+    } catch (e) {
+      print("Error picking image: $e");
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text("Error picking image: $e")),
+      );
     }
   }
 
@@ -77,41 +115,118 @@ class _HomeScreenState extends State<HomeScreen> {
     showDialog(
       context: context,
       builder: (context) {
-        return AlertDialog(
-          title: const Text("Add Product Group", style: TextStyle(fontFamily: "Nunito")),
-          content: SingleChildScrollView(
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                buildTextField("Product Name", _productNameController),
-                const SizedBox(height: 10),
-                buildTextField("Product Description", _productDescriptionController),
-                const SizedBox(height: 10),
-                buildTextField("Product Category", _productCategoryController),
-                const SizedBox(height: 10),
-                buildTextField("Product Code", _productCodeController),
+        return StatefulBuilder(
+          builder: (context, setDialogState) {
+            return AlertDialog(
+              title: const Text("Add Product Group", style: TextStyle(fontFamily: "Nunito")),
+              content: SingleChildScrollView(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    const SizedBox(height: 10),
+                    // Image preview with border
+                    GestureDetector(
+                      onTap: () async {
+                        try {
+                          final pickedFile = await _picker.pickImage(source: ImageSource.gallery);
+                          if (pickedFile != null) {
+                            final file = File(pickedFile.path);
+                            if (await file.exists()) {
+                              setDialogState(() {
+                                _selectedImage = file;
+                              });
+                              setState(() {
+                                _selectedImage = file;
+                              });
+                            } else {
+                              print("Error: Selected file does not exist at path: ${pickedFile.path}");
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                const SnackBar(content: Text("Failed to load image")),
+                              );
+                            }
+                          }
+                        } catch (e) {
+                          print("Error picking image: $e");
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(content: Text("Error picking image: $e")),
+                          );
+                        }
+                      },
+                      child: Container(
+                        height: 100,
+                        width: 100,
+                        decoration: BoxDecoration(
+                          border: Border.all(color: ColorPalette.timberGreen, width: 2),
+                          borderRadius: BorderRadius.circular(10),
+                          color: Colors.grey[200],
+                        ),
+                        child: _selectedImage != null
+                            ? ClipRRect(
+                          borderRadius: BorderRadius.circular(8),
+                          child: Image.file(
+                            _selectedImage!,
+                            fit: BoxFit.cover,
+                            height: 100,
+                            width: 100,
+                            errorBuilder: (context, error, stackTrace) {
+                              print("Error displaying image: $error");
+                              return const Center(
+                                child: Text(
+                                  "Error",
+                                  style: TextStyle(fontFamily: "Nunito", color: Colors.red),
+                                ),
+                              );
+                            },
+                          ),
+                        )
+                            : const Center(
+                          child: Text(
+                            "Select image",
+                            style: TextStyle(fontFamily: "Nunito", color: Colors.grey),
+                          ),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 10),
+                    buildTextField("Product Name", _productNameController),
+                    const SizedBox(height: 10),
+                    buildTextField("Product Description", _productDescriptionController),
+                    const SizedBox(height: 10),
+                    buildTextField("Product Category", _productCategoryController),
+                    const SizedBox(height: 10),
+                    buildTextField("Product Code", _productCodeController),
+                  ],
+                ),
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () {
+                    setState(() {
+                      _selectedImage = null; // Reset image on cancel
+                    });
+                    Navigator.of(context).pop();
+                  },
+                  child: const Text("Cancel"),
+                ),
+                ElevatedButton(
+                  onPressed: () {
+                    if (_productNameController.text.isNotEmpty &&
+                        _productDescriptionController.text.isNotEmpty &&
+                        _productCategoryController.text.isNotEmpty &&
+                        _productCodeController.text.isNotEmpty &&
+                        _selectedImage != null) {
+                      addProductGroup();
+                    } else {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(content: Text("Please fill all fields and select an image")),
+                      );
+                    }
+                  },
+                  child: const Text("Done"),
+                ),
               ],
-            ),
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.of(context).pop(),
-              child: const Text("Cancel"),
-            ),
-            ElevatedButton(
-              onPressed: () {
-                if (_productNameController.text.isNotEmpty &&
-                    _productDescriptionController.text.isNotEmpty &&
-                    _productCategoryController.text.isNotEmpty &&
-                    _productCodeController.text.isNotEmpty) {
-                  addProductGroup();
-                } else {
-                  print("Please fill all fields");
-                }
-              },
-              child: const Text("Done"),
-            ),
-          ],
+            );
+          },
         );
       },
     );
@@ -129,20 +244,16 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
-  final TextEditingController _newProductGroup = TextEditingController();
-
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      floatingActionButton: Padding(padding: const EdgeInsets.only(
-        bottom: 10,
-        right: 10
-      ),
-        child: FloatingActionButton(onPressed: showAddProductGroupDialog,
+      floatingActionButton: Padding(
+        padding: const EdgeInsets.only(bottom: 10, right: 10),
+        child: FloatingActionButton(
+          onPressed: showAddProductGroupDialog,
           backgroundColor: ColorPalette.pacificBlue,
           child: const Icon(Icons.add, color: ColorPalette.white),
         ),
-
       ),
       body: DoubleBackToCloseApp(
         snackBar: const SnackBar(
@@ -158,19 +269,11 @@ class _HomeScreenState extends State<HomeScreen> {
               child: Column(
                 children: [
                   Container(
-                    padding: const EdgeInsets.only(
-                      top: 10,
-                      left: 20,
-                      right: 15,
-                    ),
+                    padding: const EdgeInsets.only(top: 10, left: 20, right: 15),
                     width: double.infinity,
                     height: 90,
                     decoration: const BoxDecoration(
                       color: ColorPalette.pacificBlue,
-                      // borderRadius: BorderRadius.only(
-                      //   bottomLeft: Radius.circular(16),
-                      //   bottomRight: Radius.circular(16),
-                      // ),
                     ),
                     child: Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -187,45 +290,34 @@ class _HomeScreenState extends State<HomeScreen> {
                           children: [
                             IconButton(
                               splashColor: ColorPalette.timberGreen,
-                              icon: const Icon(
-                                Icons.search,
-                                color: Colors.white,
-                              ),
-                              onPressed: () {
-                                // Navigator.of(context).push(
-                                //   MaterialPageRoute(
-                                //     builder: (context) =>
-                                //     const GlobalSearchPage(),
-                                //   ),
-                                // );
-                              },
+                              icon: const Icon(Icons.search, color: Colors.white),
+                              onPressed: () {},
                             ),
                             IconButton(
-                              icon: const Icon(
-                                Icons.power_settings_new,
-                                color: Colors.white,
-                              ),
+                              icon: const Icon(Icons.power_settings_new, color: Colors.white),
                               onPressed: () {
                                 showConfirmDialog(
                                   context,
                                   "Are you sure you want to Logout?",
                                   "No",
-                                  "Yes", () async {
-                                  Navigator.of(context).pop();
-                                }, () async {
-                                  final prefs = await SharedPreferences.getInstance();
-                                  await prefs.setBool('isLoggedIn', false);
-                                  await prefs.remove('loggedInEmail');
-                                  Navigator.of(context).pop();
-                                  Navigator.of(context).pushReplacement(
-                                    MaterialPageRoute(builder: (context) => LoginScreen()),
-                                  );
-                                },
+                                  "Yes",
+                                      () async {
+                                    Navigator.of(context).pop();
+                                  },
+                                      () async {
+                                    final prefs = await SharedPreferences.getInstance();
+                                    await prefs.setBool('isLoggedIn', false);
+                                    await prefs.remove('loggedInEmail');
+                                    Navigator.of(context).pop();
+                                    Navigator.of(context).pushReplacement(
+                                      MaterialPageRoute(builder: (context) => LoginScreen()),
+                                    );
+                                  },
                                 );
                               },
-                            )
+                            ),
                           ],
-                        )
+                        ),
                       ],
                     ),
                   ),
@@ -236,13 +328,7 @@ class _HomeScreenState extends State<HomeScreen> {
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            Row(
-                              children: const [
-                                SizedBox(
-                                  height: 20,
-                                ),
-                              ],
-                            ),
+                            const SizedBox(height: 20),
                             Row(
                               children: [
                                 const Text(
@@ -255,9 +341,7 @@ class _HomeScreenState extends State<HomeScreen> {
                                 ),
                                 const Spacer(),
                                 IconButton(
-                                  onPressed: () {
-                                    fetchProductGroups();
-                                  },
+                                  onPressed: fetchProductGroups,
                                   icon: const Icon(Icons.refresh),
                                 ),
                               ],
@@ -280,11 +364,12 @@ class _HomeScreenState extends State<HomeScreen> {
                                     description: reversedList[index]['productDescription'],
                                     code: reversedList[index]['productCode'],
                                     id: int.parse(reversedList[index]['productId']!),
+                                    imageData: reversedList[index]['imageData'], // Pass imageData
                                     key: UniqueKey(),
                                   );
                                 },
                               ),
-                            )
+                            ),
                           ],
                         ),
                       ),

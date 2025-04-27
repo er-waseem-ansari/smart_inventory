@@ -1,4 +1,4 @@
-import 'package:cached_network_image/cached_network_image.dart';
+import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:smart_inventory/models/Product.dart';
 import 'package:smart_inventory/screens/product_details_screen/ProductDetailsPage.dart';
@@ -20,7 +20,12 @@ class ProductCard extends StatelessWidget {
               product: product,
             ),
           ),
-        );
+        ).then((value) {
+          if (value == true) {
+            // Trigger refresh in ProductGroupPage
+            (context as Element).markNeedsBuild();
+          }
+        });
       },
       child: Container(
         margin: const EdgeInsets.symmetric(vertical: 10),
@@ -42,7 +47,7 @@ class ProductCard extends StatelessWidget {
             SizedBox(
               height: 87,
               width: 87,
-              child: (product!.image == null)
+              child: product!.image == null || product!.image!.isEmpty
                   ? Center(
                 child: Icon(
                   Icons.image,
@@ -51,10 +56,13 @@ class ProductCard extends StatelessWidget {
               )
                   : ClipRRect(
                 borderRadius: BorderRadius.circular(11),
-                child: CachedNetworkImage(
+                child: Image.memory(
+                  base64Decode(
+                    product!.image!.replaceFirst(RegExp(r'data:image/[^;]+;base64,'), ''),
+                  ),
                   fit: BoxFit.cover,
-                  imageUrl: product!.image!,
-                  errorWidget: (context, s, a) {
+                  errorBuilder: (context, error, stackTrace) {
+                    print("Error decoding image: $error");
                     return Icon(
                       Icons.image,
                       color: ColorPalette.nileBlue.withOpacity(0.5),
@@ -63,9 +71,7 @@ class ProductCard extends StatelessWidget {
                 ),
               ),
             ),
-            const SizedBox(
-              width: 10,
-            ),
+            const SizedBox(width: 10),
             Expanded(
               flex: 5,
               child: Column(
@@ -80,9 +86,7 @@ class ProductCard extends StatelessWidget {
                       color: ColorPalette.timberGreen.withOpacity(0.8),
                     ),
                   ),
-                  const SizedBox(
-                    height: 5,
-                  ),
+                  const SizedBox(height: 5),
                   Row(
                     children: [
                       Icon(
@@ -101,9 +105,7 @@ class ProductCard extends StatelessWidget {
                       ),
                     ],
                   ),
-                  const SizedBox(
-                    height: 5,
-                  ),
+                  const SizedBox(height: 5),
                   Row(
                     children: [
                       Text(
@@ -116,11 +118,7 @@ class ProductCard extends StatelessWidget {
                         ),
                       ),
                       Padding(
-                        padding: const EdgeInsets.only(
-                          left: 5,
-                          top: 2,
-                          right: 5,
-                        ),
+                        padding: const EdgeInsets.only(left: 5, top: 2, right: 5),
                         child: Icon(
                           Icons.circle,
                           size: 5,
@@ -138,11 +136,8 @@ class ProductCard extends StatelessWidget {
                       ),
                     ],
                   ),
-                  const SizedBox(
-                    height: 5,
-                  ),
+                  const SizedBox(height: 5),
                   SizedBox(
-                    // width: 100,
                     child: Text(
                       product!.description ?? '-',
                       maxLines: 3,

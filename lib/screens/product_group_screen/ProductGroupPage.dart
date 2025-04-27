@@ -1,5 +1,4 @@
 import 'dart:convert';
-
 import 'package:flutter/material.dart';
 import 'package:smart_inventory/models/Product.dart';
 import 'package:smart_inventory/screens/new_product_screen/NewProductPage.dart';
@@ -11,7 +10,7 @@ import 'package:http/http.dart' as http;
 class ProductGroupPage extends StatefulWidget {
   final String? name;
   final int? id;
-  ProductGroupPage({Key? key, this.name, this.id}) : super(key: key);
+  const ProductGroupPage({Key? key, this.name, this.id}) : super(key: key);
 
   @override
   State<ProductGroupPage> createState() => _ProductGroupPageState();
@@ -31,14 +30,14 @@ class _ProductGroupPageState extends State<ProductGroupPage> {
       print("INSIDE DELETE PRODUCT with ID: ${widget.id}");
 
       final response = await http.delete(
-          Uri.parse('http://10.0.2.2:8082/products/${widget.id}'),
+        Uri.parse('http://10.0.2.2:8082/products/${widget.id}'),
       );
 
       if (response.statusCode == 200) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Product deleted successfully!')),
+          const SnackBar(content: Text('Product deleted successfully!')),
         );
-        Navigator.of(context).pop();
+        Navigator.of(context).pop(true); // Return true to trigger refresh
       } else {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text('Failed to delete product: ${response.body}')),
@@ -52,7 +51,9 @@ class _ProductGroupPageState extends State<ProductGroupPage> {
   }
 
   Future<List<Product>> fetchProducts() async {
-    final response = await http.get(Uri.parse("http://10.0.2.2:8082/products/items/productName/${widget.name}"));
+    final response = await http.get(
+      Uri.parse("http://10.0.2.2:8082/products/items/productName/${widget.name}"),
+    );
 
     if (response.statusCode == 200) {
       List<dynamic> data = json.decode(response.body);
@@ -73,7 +74,13 @@ class _ProductGroupPageState extends State<ProductGroupPage> {
               MaterialPageRoute(
                 builder: (context) => NewProductPage(group: widget.name),
               ),
-            );
+            ).then((value) {
+              if (value == true) {
+                setState(() {
+                  futureProducts = fetchProducts(); // Refresh after adding product
+                });
+              }
+            });
           },
           splashColor: ColorPalette.bondyBlue,
           backgroundColor: ColorPalette.pacificBlue,
@@ -136,7 +143,7 @@ class _ProductGroupPageState extends State<ProductGroupPage> {
                                 itemBuilder: (context, index) {
                                   return ProductCard(
                                     product: products[index],
-                                    docID: products[index].id.toString() ?? "N/A",
+                                    docID: products[index].id.toString(),
                                   );
                                 },
                               );
@@ -175,7 +182,7 @@ class _ProductGroupPageState extends State<ProductGroupPage> {
               IconButton(
                 icon: const Icon(Icons.chevron_left_rounded, color: Colors.white, size: 35),
                 onPressed: () {
-                  Navigator.of(context).pop();
+                  Navigator.of(context).pop(true); // Return true to refresh HomeScreen
                 },
               ),
               Text(
@@ -199,9 +206,7 @@ class _ProductGroupPageState extends State<ProductGroupPage> {
               ),
               IconButton(
                 icon: const Icon(Icons.delete, color: Colors.white),
-                onPressed: () {
-                  deleteProduct(context);
-                },
+                onPressed: () => deleteProduct(context),
               ),
             ],
           ),

@@ -1,20 +1,57 @@
 import 'dart:convert';
-
-import 'package:cached_network_image/cached_network_image.dart';
+import 'dart:io';
 import 'package:flutter/material.dart';
+import 'package:http/http.dart' as http;
+import 'package:image_picker/image_picker.dart';
 import 'package:smart_inventory/models/Product.dart';
 import 'package:smart_inventory/utils/color_palette.dart';
 import 'package:smart_inventory/widgets/location_drop_down.dart';
-import 'package:http/http.dart' as http;
 
-class NewProductPage extends StatelessWidget {
+class NewProductPage extends StatefulWidget {
   final String? group;
-  NewProductPage({Key? key, this.group}) : super(key: key);
+  const NewProductPage({Key? key, this.group}) : super(key: key);
 
+  @override
+  State<NewProductPage> createState() => _NewProductPageState();
+}
+
+class _NewProductPageState extends State<NewProductPage> {
   final Product newProduct = Product();
+  File? _selectedImage;
+  final ImagePicker _picker = ImagePicker();
+
+  Future<void> _pickImage() async {
+    try {
+      final pickedFile = await _picker.pickImage(source: ImageSource.gallery);
+      if (pickedFile != null) {
+        final file = File(pickedFile.path);
+        if (await file.exists()) {
+          setState(() {
+            _selectedImage = file;
+          });
+        } else {
+          print("Error: Selected file does not exist at path: ${pickedFile.path}");
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text("Failed to load image")),
+          );
+        }
+      }
+    } catch (e) {
+      print("Error picking image: $e");
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text("Error picking image: $e")),
+      );
+    }
+  }
 
   Future<void> addProduct(BuildContext context) async {
     try {
+      String? base64Image;
+      if (_selectedImage != null) {
+        final bytes = await _selectedImage!.readAsBytes();
+        base64Image = base64Encode(bytes);
+      }
+
       final url = Uri.parse('http://10.0.2.2:8082/products/items');
 
       final response = await http.post(
@@ -24,19 +61,19 @@ class NewProductPage extends StatelessWidget {
           "id": newProduct.id,
           "name": newProduct.name,
           "cost": newProduct.cost,
-          "group": newProduct.group ?? group,
+          "group": newProduct.group ?? widget.group,
           "location": newProduct.location,
           "company": newProduct.company,
           "quantity": newProduct.quantity,
-          "image": newProduct.image,
+          "image": base64Image, // Send Base64 string
           "description": newProduct.description,
-          "productName": group,
+          "productName": widget.group,
         }),
       );
 
       if (response.statusCode == 201 || response.statusCode == 200) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Product added successfully!')),
+          const SnackBar(content: Text('Product added successfully!')),
         );
         Navigator.of(context).pop(); // Close the page after successful submission
       } else {
@@ -105,19 +142,25 @@ class NewProductPage extends StatelessWidget {
                         children: [
                           const SizedBox(height: 20),
                           Center(
-                            child: SizedBox(
-                              height: 100,
-                              width: 100,
-                              child: ClipRRect(
-                                borderRadius: BorderRadius.circular(11),
-                                child: Container(
-                                  color: ColorPalette.white,
-                                  child: newProduct.image == null
-                                      ? const Center(child: Icon(Icons.image, color: Colors.grey))
-                                      : CachedNetworkImage(
-                                    fit: BoxFit.cover,
-                                    imageUrl: newProduct.image!,
-                                    errorWidget: (context, s, a) => const Icon(Icons.image, color: Colors.grey),
+                            child: GestureDetector(
+                              onTap: _pickImage,
+                              child: SizedBox(
+                                height: 100,
+                                width: 100,
+                                child: ClipRRect(
+                                  borderRadius: BorderRadius.circular(11),
+                                  child: Container(
+                                    color: ColorPalette.white,
+                                    child: _selectedImage != null
+                                        ? Image.file(
+                                      _selectedImage!,
+                                      fit: BoxFit.cover,
+                                      errorBuilder: (context, error, stackTrace) {
+                                        print("Error displaying image: $error");
+                                        return const Center(child: Icon(Icons.image, color: Colors.grey));
+                                      },
+                                    )
+                                        : const Center(child: Icon(Icons.image, color: Colors.grey)),
                                   ),
                                 ),
                               ),
@@ -127,7 +170,7 @@ class NewProductPage extends StatelessWidget {
                           Padding(
                             padding: const EdgeInsets.only(left: 8, bottom: 12),
                             child: Text(
-                              "Product Group : $group",
+                              "Product Group : ${widget.group}",
                               style: const TextStyle(fontFamily: "Nunito", fontSize: 17, color: ColorPalette.nileBlue),
                             ),
                           ),
@@ -179,7 +222,6 @@ class NewProductPage extends StatelessWidget {
                             ),
                           ),
                           LocationDD(product: newProduct),
-
                           const SizedBox(height: 20),
                         ],
                       ),
@@ -204,7 +246,13 @@ class NewProductPage extends StatelessWidget {
       decoration: BoxDecoration(
         color: ColorPalette.white,
         borderRadius: BorderRadius.circular(12),
-        boxShadow: [BoxShadow(offset: const Offset(0, 3), blurRadius: 6, color: ColorPalette.nileBlue.withOpacity(0.1))],
+        boxShadow: [
+          BoxShadow(
+            offset: const Offset(0, 3),
+            blurRadius: 6,
+            color: ColorPalette.nileBlue.withOpacity(0.1),
+          ),
+        ],
       ),
       height: 50,
       child: TextFormField(
@@ -217,7 +265,11 @@ class NewProductPage extends StatelessWidget {
           hintText: hintText,
           filled: true,
           fillColor: Colors.transparent,
-          hintStyle: TextStyle(fontFamily: "Nunito", fontSize: 16, color: ColorPalette.nileBlue.withOpacity(0.58)),
+          hintStyle: TextStyle(
+            fontFamily: "Nunito",
+            fontSize: 16,
+            color: ColorPalette.nileBlue.withOpacity(0.58),
+          ),
         ),
         cursorColor: ColorPalette.timberGreen,
       ),
