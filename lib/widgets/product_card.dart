@@ -29,7 +29,7 @@ class ProductCard extends StatelessWidget {
       },
       child: Container(
         margin: const EdgeInsets.symmetric(vertical: 10),
-        height: 147,
+        height: 160,
         decoration: BoxDecoration(
           color: ColorPalette.white,
           borderRadius: BorderRadius.circular(16),
@@ -141,6 +141,8 @@ class ProductCard extends StatelessWidget {
                     child: Text(
                       product!.description ?? '-',
                       maxLines: 3,
+                      overflow: TextOverflow.ellipsis,
+                      softWrap: true,
                       style: TextStyle(
                         fontFamily: "Nunito",
                         fontSize: 11,
